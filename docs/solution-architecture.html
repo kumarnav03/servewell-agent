@@ -1,0 +1,920 @@
+<title>ServeWell Triage Agent Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+:root {
+  --paper: #F4F6F5;
+  --surface: #FFFFFF;
+  --ink: #17232B;
+  --muted: #56656E;
+  --line: #D5DDDD;
+  --line-strong: #B9C6C7;
+  --accent: #0E6A7E;
+  --accent-soft: #DDEEF1;
+  --ok: #2E7A55;
+  --ok-soft: #E1F1E8;
+  --warn: #B8680F;
+  --warn-soft: #FBEBD6;
+  --crit: #B3372E;
+  --crit-soft: #F8E1DE;
+  --receipt: #FDFDFB;
+  --receipt-ink: #2A2F33;
+
+  --f-display: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --s-1: 0.8125rem;
+  --s0: 1rem;
+  --s1: 1.1875rem;
+  --s2: 1.5rem;
+  --s3: 2.125rem;
+  --s4: 3rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #0F171B;
+    --surface: #16232A;
+    --ink: #E3ECEE;
+    --muted: #96A8AE;
+    --line: #2A3B42;
+    --line-strong: #3C5058;
+    --accent: #5BBBD0;
+    --accent-soft: #123640;
+    --ok: #5CC08E;
+    --ok-soft: #14352A;
+    --warn: #E6A04E;
+    --warn-soft: #3A2A14;
+    --crit: #E7766C;
+    --crit-soft: #3B1C19;
+    --receipt: #E9ECE8;
+    --receipt-ink: #1E2326;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0F171B;
+  --surface: #16232A;
+  --ink: #E3ECEE;
+  --muted: #96A8AE;
+  --line: #2A3B42;
+  --line-strong: #3C5058;
+  --accent: #5BBBD0;
+  --accent-soft: #123640;
+  --ok: #5CC08E;
+  --ok-soft: #14352A;
+  --warn: #E6A04E;
+  --warn-soft: #3A2A14;
+  --crit: #E7766C;
+  --crit-soft: #3B1C19;
+  --receipt: #E9ECE8;
+  --receipt-ink: #1E2326;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: var(--s0);
+  line-height: 1.6;
+  padding-inline: clamp(16px, 4vw, 48px);
+  padding-block: 0 96px;
+}
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+code, .mono { font-family: var(--f-mono); font-size: 0.9em; }
+code { background: var(--accent-soft); padding: 0.05em 0.35em; border-radius: 3px; }
+
+.page {
+  max-width: 1180px;
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 56px;
+}
+@media (max-width: 900px) {
+  .page { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .rail { display: none; }
+}
+
+/* contents rail */
+.rail { position: relative; }
+.rail nav {
+  position: sticky;
+  top: calc(env(safe-area-inset-top, 0px) + 32px);
+  padding-top: 40px;
+  display: grid;
+  gap: 2px;
+  font-size: var(--s-1);
+}
+.rail .rail-label {
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.rail a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 4px 0 4px 12px;
+  border-left: 2px solid var(--line);
+}
+.rail a:hover { color: var(--ink); border-left-color: var(--accent); }
+
+/* header */
+header.doc-head { padding-top: 40px; padding-bottom: 32px; border-bottom: 1px solid var(--line-strong); }
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+h1, h2, h3 {
+  font-family: var(--f-display);
+  font-stretch: 85%;
+  text-wrap: balance;
+  line-height: 1.12;
+  margin: 0;
+}
+h1 { font-size: clamp(2.25rem, 5vw, var(--s4)); font-weight: 750; letter-spacing: -0.01em; margin-top: 10px; }
+h2 { font-size: var(--s3); font-weight: 700; }
+h3 { font-size: var(--s1); font-weight: 650; font-stretch: 92%; }
+.lede { font-size: var(--s1); max-width: 64ch; margin: 16px 0 0; color: var(--ink); }
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  margin: 24px 0 0;
+  padding: 0;
+  font-size: var(--s-1);
+}
+.meta div { display: grid; gap: 0; }
+.meta dt { font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.meta dd { margin: 0; font-weight: 500; }
+
+/* sections */
+section { padding-top: 56px; display: grid; gap: 18px; }
+section > p, section > ul, .prose { max-width: 68ch; margin: 0; }
+section > ul { padding-left: 1.2em; display: grid; gap: 6px; }
+.section-kicker { font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.head-group { display: grid; gap: 6px; }
+
+/* glance */
+.glance { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; margin-top: 6px; }
+@media (max-width: 760px) { .glance { grid-template-columns: minmax(0, 1fr); } }
+.glance > div { border-top: 3px solid var(--line-strong); padding-top: 14px; display: grid; gap: 8px; align-content: start; }
+.glance > div.g-agent { border-top-color: var(--accent); }
+.glance > div.g-human { border-top-color: var(--warn); }
+.glance > div.g-proof { border-top-color: var(--ok); }
+.glance p { margin: 0; font-size: 0.95rem; }
+
+/* figures */
+figure { margin: 8px 0 0; display: grid; gap: 10px; }
+.fig-frame {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 20px;
+  overflow-x: auto;
+}
+.fig-frame svg { display: block; width: 100%; height: auto; min-width: 720px; color: var(--ink); }
+figcaption { font-size: var(--s-1); color: var(--muted); max-width: 80ch; }
+
+/* svg classes (page CSS applies to inline SVG) */
+.n-tool { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+.n-llm { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.6; }
+.n-guard { fill: var(--ok-soft); stroke: var(--ok); stroke-width: 1.4; }
+.n-human { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.6; }
+.n-plain { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+.n-fail { fill: var(--crit-soft); stroke: var(--crit); stroke-width: 1.2; }
+.boundary { fill: none; stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.t-name { font-family: var(--f-mono); font-size: 12.5px; font-weight: 500; fill: var(--ink); }
+.t-sub { font-family: var(--f-body); font-size: 11px; fill: var(--muted); }
+.t-edge { font-family: var(--f-body); font-size: 11px; fill: var(--muted); }
+.t-zone { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.06em; fill: var(--accent); }
+.t-ok { fill: var(--ok); }
+.t-fail { fill: var(--crit); }
+.edge { fill: none; stroke: var(--muted); stroke-width: 1.3; }
+.edge-dash { fill: none; stroke: var(--muted); stroke-width: 1.3; stroke-dasharray: 4 4; }
+.edge-ok { fill: none; stroke: var(--ok); stroke-width: 1.5; }
+.edge-fail { fill: none; stroke: var(--crit); stroke-width: 1.3; }
+.arrowhead { fill: var(--muted); }
+.arrowhead-ok { fill: var(--ok); }
+.arrowhead-fail { fill: var(--crit); }
+
+/* tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 640px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th {
+  font-family: var(--f-mono);
+  font-weight: 500;
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--paper);
+}
+td.nowrap, th.nowrap { white-space: nowrap; }
+td .mono { font-size: 0.85rem; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* chips */
+.chip {
+  display: inline-block;
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+.c-tool { color: var(--muted); }
+.c-llm { color: var(--accent); background: var(--accent-soft); }
+.c-guard { color: var(--ok); background: var(--ok-soft); }
+.c-auto { color: var(--ok); background: var(--ok-soft); }
+.c-human { color: var(--warn); background: var(--warn-soft); }
+.c-crit { color: var(--crit); background: var(--crit-soft); }
+.c-info { color: var(--accent); }
+
+/* principle callout */
+.principle {
+  max-width: 68ch;
+  border-left: 3px solid var(--accent);
+  padding: 4px 0 4px 18px;
+  font-family: var(--f-display);
+  font-stretch: 92%;
+  font-size: var(--s1);
+  font-weight: 560;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* worked example: receipt */
+.example { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 40px; align-items: start; }
+@media (max-width: 980px) { .example { grid-template-columns: minmax(0, 1fr); } }
+.example .prose { display: grid; gap: 14px; }
+.example .prose p { margin: 0; }
+.receipt {
+  --tooth: 8px;
+  justify-self: center;
+  width: 100%;
+  max-width: 380px;
+  background: var(--receipt);
+  color: var(--receipt-ink);
+  font-family: var(--f-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  padding: 26px 20px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 10px 24px -14px rgba(10, 30, 40, 0.35);
+  -webkit-mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--tooth) 51% repeat-x,
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / var(--tooth) 51% repeat-x;
+          mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--tooth) 51% repeat-x,
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / var(--tooth) 51% repeat-x;
+}
+.receipt .r-center { text-align: center; }
+.receipt .r-title { font-weight: 500; font-size: 13px; letter-spacing: 0.06em; }
+.receipt hr { border: 0; border-top: 1px dashed currentColor; opacity: 0.5; margin: 10px 0; }
+.receipt .r-row { display: grid; grid-template-columns: 98px 56px 1fr; gap: 6px; font-variant-numeric: tabular-nums; }
+.receipt .r-row .ms { text-align: right; }
+.receipt .r-note { grid-column: 3; opacity: 0.8; }
+.receipt .r-final { display: flex; justify-content: space-between; font-weight: 500; font-size: 13px; }
+.receipt .r-cut { color: #A0522D; }
+
+/* grids of small facts */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 20px 28px; }
+.facts > div { display: grid; gap: 4px; align-content: start; }
+.facts .k { font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.facts .v { font-family: var(--f-display); font-stretch: 85%; font-size: var(--s2); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.facts .d { font-size: var(--s-1); color: var(--muted); }
+
+.two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+@media (max-width: 760px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
+.two-col > div { display: grid; gap: 10px; align-content: start; }
+.two-col ul { margin: 0; padding-left: 1.15em; display: grid; gap: 6px; font-size: 0.95rem; }
+
+footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line); font-size: var(--s-1); color: var(--muted); }
+</style>
+
+<div class="page">
+  <aside class="rail" aria-label="Contents">
+    <nav>
+      <span class="rail-label">Contents</span>
+      <a href="#glance">At a glance</a>
+      <a href="#context">System context</a>
+      <a href="#workflow">Agent workflow</a>
+      <a href="#example">A real run</a>
+      <a href="#data">Tools &amp; enrichment</a>
+      <a href="#grounding">Retrieval &amp; grounding</a>
+      <a href="#actions">Actions &amp; approvals</a>
+      <a href="#guardrails">Guardrails</a>
+      <a href="#evaluation">Evaluation &amp; observability</a>
+      <a href="#tradeoffs">Trade-offs</a>
+      <a href="#production">Path to production</a>
+      <a href="#limits">Limits &amp; next steps</a>
+    </nav>
+  </aside>
+
+  <main>
+    <header class="doc-head">
+      <div class="eyebrow">Solution architecture · proof of concept</div>
+      <h1>ServeWell Printer Triage Agent</h1>
+      <p class="lede">An agent that takes an incoming receipt- or kitchen-printer incident, looks up the facts about the store and the device, finds the right runbook steps, and either guides the store to a fix or packages the ticket for L2. Every step is checked, the ones that matter wait for a person, and everything is logged.</p>
+      <dl class="meta">
+        <div><dt>Client</dt><dd>ServeWell Hospitality</dd></div>
+        <div><dt>Pilot scope</dt><dd>Printers (Epson TM-T88VI, Star MC Print v2)</dd></div>
+        <div><dt>Platform</dt><dd>phData Intelligence Platform, simulated locally</dd></div>
+        <div><dt>Stack</dt><dd>Open source, runs on one laptop</dd></div>
+        <div><dt>Status</dt><dd>Working prototype · 26 Sep 2026</dd></div>
+      </dl>
+    </header>
+
+    <!-- ============================================================ GLANCE -->
+    <section id="glance">
+      <div class="head-group">
+        <span class="section-kicker">For the business owner</span>
+        <h2>At a glance</h2>
+      </div>
+      <p>Store managers wait 30–45 minutes at peak for a first useful answer, and 60–70% of tickets are known issues that already have a runbook. The pilot targets one of the most frequent of these: printers that go offline, print blank or garbled receipts, or aren't detected by the POS.</p>
+      <div class="glance">
+        <div class="g-agent">
+          <h3>What the agent does</h3>
+          <p>Reads the ticket, checks the store, device, warranty, SLA and known bugs, and pulls the matching runbook sections. It then decides: guide the store, ask for missing details, redirect a non-IT request, or escalate to L2 with the evidence already gathered.</p>
+        </div>
+        <div class="g-human">
+          <h3>What stays with a person</h3>
+          <p>In the pilot's default supervised mode, every message to a store, every L2 escalation and every remote action waits for an analyst to click Approve. The agent only writes internal notes and sets routing on its own.</p>
+        </div>
+        <div class="g-proof">
+          <h3>How we know it works</h3>
+          <p>Every step shown to a store must be traceable to a specific runbook passage, or it is removed. The whole pipeline is scored against labelled historical tickets, and every run leaves an audit trail down to the exact prompt the model saw.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ CONTEXT -->
+    <section id="context">
+      <div class="head-group">
+        <span class="section-kicker">Architecture</span>
+        <h2>System context</h2>
+      </div>
+      <p>The agent is an orchestration layer. It holds no data of its own: it calls platform services for facts, knowledge and actions. For the POC, each platform building block is simulated locally with the ServeWell dataset, behind the same interface the real platform service would expose.</p>
+      <figure>
+        <div class="fig-frame">
+          <svg viewBox="0 0 1000 548" role="img" aria-label="System context: store managers and L1 reviewers use the Triage Console, which drives the LangGraph agent workflow. The workflow calls a local LLM runtime and five simulated platform services: data service, retrieval, ITSM tools, automations and audit log, which sit on the structured tables and the knowledge base.">
+            <defs>
+              <marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrowhead"/></marker>
+            </defs>
+
+            <!-- users -->
+            <rect x="150" y="16" width="200" height="50" rx="6" class="n-plain"/>
+            <text x="250" y="38" text-anchor="middle" class="t-name">Store manager</text>
+            <text x="250" y="55" text-anchor="middle" class="t-sub">raises ticket · gets guidance</text>
+            <rect x="400" y="16" width="200" height="50" rx="6" class="n-human"/>
+            <text x="500" y="38" text-anchor="middle" class="t-name">L1 analyst</text>
+            <text x="500" y="55" text-anchor="middle" class="t-sub">reviews · approves actions</text>
+
+            <path d="M250 66 V104" class="edge" marker-end="url(#ah1)"/>
+            <path d="M500 66 V104" class="edge" marker-end="url(#ah1)"/>
+
+            <!-- console -->
+            <rect x="150" y="106" width="450" height="50" rx="6" class="n-tool"/>
+            <text x="375" y="128" text-anchor="middle" class="t-name">Triage Console · Streamlit</text>
+            <text x="375" y="145" text-anchor="middle" class="t-sub">dataset ticket · new-ticket form · JSON upload · queue · evaluation</text>
+
+            <path d="M375 156 V194" class="edge" marker-end="url(#ah1)"/>
+            <text x="383" y="180" class="t-edge">ticket in · approvals back</text>
+
+            <!-- workflow -->
+            <rect x="40" y="196" width="680" height="92" rx="6" class="n-llm"/>
+            <text x="380" y="224" text-anchor="middle" class="t-name">Agent workflow · LangGraph state graph</text>
+            <text x="380" y="248" text-anchor="middle" class="t-sub">intake → input guard → scope check → enrich → retrieve → LLM triage</text>
+            <text x="380" y="266" text-anchor="middle" class="t-sub">→ output guard → summarize → act</text>
+
+            <!-- llm runtime -->
+            <rect x="786" y="196" width="190" height="92" rx="6" class="n-tool"/>
+            <text x="881" y="222" text-anchor="middle" class="t-name">LLM runtime · Ollama</text>
+            <text x="881" y="242" text-anchor="middle" class="t-sub">qwen2.5:7b-instruct</text>
+            <text x="881" y="258" text-anchor="middle" class="t-sub">nomic-embed-text</text>
+            <text x="881" y="276" text-anchor="middle" class="t-sub">local · no data leaves host</text>
+            <path d="M720 242 H782" class="edge" marker-end="url(#ah1)"/>
+            <text x="751" y="234" text-anchor="middle" class="t-edge">1 JSON call</text>
+
+            <!-- platform boundary -->
+            <rect x="26" y="322" width="708" height="208" rx="8" class="boundary"/>
+            <text x="40" y="341" class="t-zone">SIMULATED phDATA INTELLIGENCE PLATFORM</text>
+
+            <!-- services -->
+            <g>
+              <rect x="40" y="366" width="124" height="60" rx="6" class="n-tool"/>
+              <text x="102" y="391" text-anchor="middle" class="t-name">Data service</text>
+              <text x="102" y="409" text-anchor="middle" class="t-sub">DuckDB</text>
+
+              <rect x="179" y="366" width="124" height="60" rx="6" class="n-tool"/>
+              <text x="241" y="391" text-anchor="middle" class="t-name">Retrieval</text>
+              <text x="241" y="409" text-anchor="middle" class="t-sub">BM25 + Chroma</text>
+
+              <rect x="318" y="366" width="124" height="60" rx="6" class="n-tool"/>
+              <text x="380" y="391" text-anchor="middle" class="t-name">ITSM tools</text>
+              <text x="380" y="409" text-anchor="middle" class="t-sub">SQLite</text>
+
+              <rect x="457" y="366" width="124" height="60" rx="6" class="n-human"/>
+              <text x="519" y="391" text-anchor="middle" class="t-name">Automations</text>
+              <text x="519" y="409" text-anchor="middle" class="t-sub">3-item allow-list</text>
+
+              <rect x="596" y="366" width="124" height="60" rx="6" class="n-guard"/>
+              <text x="658" y="391" text-anchor="middle" class="t-name">Audit log</text>
+              <text x="658" y="409" text-anchor="middle" class="t-sub">append-only SQLite</text>
+            </g>
+
+            <path d="M102 288 V362" class="edge" marker-end="url(#ah1)"/>
+            <text x="108" y="318" class="t-edge">lookups</text>
+            <path d="M241 288 V362" class="edge" marker-end="url(#ah1)"/>
+            <text x="247" y="318" class="t-edge">query</text>
+            <path d="M380 288 V362" class="edge" marker-end="url(#ah1)"/>
+            <text x="386" y="318" class="t-edge">notes · routing</text>
+            <path d="M519 288 V362" class="edge-dash" marker-end="url(#ah1)"/>
+            <text x="525" y="318" class="t-edge">on approval</text>
+            <path d="M658 288 V362" class="edge" marker-end="url(#ah1)"/>
+            <text x="664" y="318" class="t-edge">every step</text>
+
+            <!-- data -->
+            <rect x="40" y="456" width="124" height="58" rx="6" class="n-plain"/>
+            <text x="102" y="479" text-anchor="middle" class="t-sub">120 stores · 477 assets</text>
+            <text x="102" y="496" text-anchor="middle" class="t-sub">SLA · version matrix</text>
+            <path d="M102 456 V430" class="edge" marker-end="url(#ah1)"/>
+
+            <rect x="179" y="456" width="124" height="58" rx="6" class="n-plain"/>
+            <text x="241" y="479" text-anchor="middle" class="t-sub">49 KB docs</text>
+            <text x="241" y="496" text-anchor="middle" class="t-sub">667 indexed chunks</text>
+            <path d="M241 456 V430" class="edge" marker-end="url(#ah1)"/>
+
+            <text x="330" y="484" class="t-sub">Ticket history (256 train tickets) is loaded</text>
+            <text x="330" y="500" class="t-sub">into the data service alongside the reference tables.</text>
+          </svg>
+        </div>
+        <figcaption>The dashed boundary is the platform seam. Everything inside it is a stand-in (DuckDB for governed tables, Chroma for the vector service, SQLite for ServiceNow) and can be swapped without touching the agent. The LLM sits outside the boundary behind one wrapper, so the model is a configuration choice.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ============================================================ WORKFLOW -->
+    <section id="workflow">
+      <div class="head-group">
+        <span class="section-kicker">Orchestration</span>
+        <h2>Agent workflow</h2>
+      </div>
+      <p>The workflow is a fixed LangGraph state graph, not a free-form conversation between agents. Each node is a specialist with one job, reading and writing a shared, typed ticket state. Only one node calls the LLM. The rest are deterministic tools or guardrails, which makes the path reproducible and each decision explainable.</p>
+      <figure>
+        <div class="fig-frame">
+          <svg viewBox="0 0 1060 446" role="img" aria-label="Agent workflow: intake, input guard, scope check and enrich run for every ticket. In-scope printer tickets go through retrieve, LLM triage and output guard; out-of-scope tickets skip the LLM and go to a human. Both paths merge at summarize and act. Act runs auto-allowed actions directly against the ITSM; everything else waits at a human approval gate.">
+            <defs>
+              <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrowhead"/></marker>
+            </defs>
+
+            <!-- main lane -->
+            <rect x="16" y="150" width="104" height="52" rx="6" class="n-tool"/>
+            <text x="68" y="172" text-anchor="middle" class="t-name">intake</text>
+            <text x="68" y="189" text-anchor="middle" class="t-sub">JSON · form</text>
+
+            <rect x="142" y="150" width="104" height="52" rx="6" class="n-guard"/>
+            <text x="194" y="172" text-anchor="middle" class="t-name">input guard</text>
+            <text x="194" y="189" text-anchor="middle" class="t-sub">PII · injection</text>
+
+            <rect x="268" y="150" width="104" height="52" rx="6" class="n-guard"/>
+            <text x="320" y="172" text-anchor="middle" class="t-name">scope check</text>
+            <text x="320" y="189" text-anchor="middle" class="t-sub">Printers pilot</text>
+
+            <rect x="394" y="150" width="104" height="52" rx="6" class="n-tool"/>
+            <text x="446" y="172" text-anchor="middle" class="t-name">enrich</text>
+            <text x="446" y="189" text-anchor="middle" class="t-sub">tools · 13 checks</text>
+
+            <path d="M120 176 H138" class="edge" marker-end="url(#ah2)"/>
+            <path d="M246 176 H264" class="edge" marker-end="url(#ah2)"/>
+            <path d="M372 176 H390" class="edge" marker-end="url(#ah2)"/>
+
+            <!-- branch -->
+            <path d="M498 176 H519 V76 H536" class="edge" marker-end="url(#ah2)"/>
+            <path d="M519 176 V276 H536" class="edge" marker-end="url(#ah2)"/>
+            <text x="526" y="112" class="t-edge">in scope</text>
+            <text x="526" y="246" class="t-edge">out of scope</text>
+
+            <!-- in-scope lane -->
+            <rect x="540" y="50" width="104" height="52" rx="6" class="n-tool"/>
+            <text x="592" y="72" text-anchor="middle" class="t-name">retrieve</text>
+            <text x="592" y="89" text-anchor="middle" class="t-sub">hybrid · top 6</text>
+
+            <rect x="666" y="50" width="104" height="52" rx="6" class="n-llm"/>
+            <text x="718" y="72" text-anchor="middle" class="t-name">LLM triage</text>
+            <text x="718" y="89" text-anchor="middle" class="t-sub">route + cited steps</text>
+
+            <rect x="792" y="50" width="104" height="52" rx="6" class="n-guard"/>
+            <text x="844" y="72" text-anchor="middle" class="t-name">output guard</text>
+            <text x="844" y="89" text-anchor="middle" class="t-sub">grounding · policy</text>
+
+            <path d="M644 76 H662" class="edge" marker-end="url(#ah2)"/>
+            <path d="M770 76 H788" class="edge" marker-end="url(#ah2)"/>
+
+            <!-- out-of-scope lane -->
+            <rect x="540" y="250" width="356" height="52" rx="6" class="n-plain"/>
+            <text x="718" y="272" text-anchor="middle" class="t-name">out of scope</text>
+            <text x="718" y="289" text-anchor="middle" class="t-sub">LLM skipped · human L1 queue, enrichment attached</text>
+
+            <!-- merge -->
+            <path d="M896 76 H917 V176 H934" class="edge" marker-end="url(#ah2)"/>
+            <path d="M896 276 H917 V176" class="edge"/>
+
+            <rect x="938" y="150" width="104" height="52" rx="6" class="n-tool"/>
+            <text x="990" y="172" text-anchor="middle" class="t-name">summarize</text>
+            <text x="990" y="189" text-anchor="middle" class="t-sub">built by code</text>
+
+            <path d="M990 202 V336" class="edge" marker-end="url(#ah2)"/>
+
+            <!-- act + gate + itsm -->
+            <rect x="938" y="340" width="104" height="52" rx="6" class="n-tool"/>
+            <text x="990" y="362" text-anchor="middle" class="t-name">act</text>
+            <text x="990" y="379" text-anchor="middle" class="t-sub">auto-allowed only</text>
+
+            <rect x="700" y="340" width="150" height="52" rx="6" class="n-human"/>
+            <text x="775" y="362" text-anchor="middle" class="t-name">human approval</text>
+            <text x="775" y="379" text-anchor="middle" class="t-sub">approve · reject</text>
+
+            <rect x="440" y="340" width="200" height="52" rx="6" class="n-plain"/>
+            <text x="540" y="362" text-anchor="middle" class="t-name">ITSM · store · L2</text>
+            <text x="540" y="379" text-anchor="middle" class="t-sub">messages, escalations, automations</text>
+
+            <path d="M938 366 H854" class="edge" marker-end="url(#ah2)"/>
+            <text x="896" y="358" text-anchor="middle" class="t-edge">proposed</text>
+            <path d="M700 366 H644" class="edge" marker-end="url(#ah2)"/>
+            <text x="672" y="358" text-anchor="middle" class="t-edge">approved</text>
+            <path d="M990 392 V424 H540 V396" class="edge-dash" marker-end="url(#ah2)"/>
+            <text x="765" y="418" text-anchor="middle" class="t-edge">auto: work note, routing</text>
+
+            <!-- legend -->
+            <g>
+              <rect x="16" y="262" width="16" height="12" rx="2" class="n-tool"/>
+              <text x="40" y="272" class="t-sub">deterministic tool</text>
+              <rect x="16" y="286" width="16" height="12" rx="2" class="n-llm"/>
+              <text x="40" y="296" class="t-sub">LLM call</text>
+              <rect x="16" y="310" width="16" height="12" rx="2" class="n-guard"/>
+              <text x="40" y="320" class="t-sub">guardrail</text>
+              <rect x="16" y="334" width="16" height="12" rx="2" class="n-human"/>
+              <text x="40" y="344" class="t-sub">human gate</text>
+            </g>
+          </svg>
+        </div>
+        <figcaption>One LLM call per ticket, surrounded by deterministic steps. The out-of-scope branch is also a safety feature: anything the pilot isn't built for goes to a person, with the lookups already done, instead of getting a best guess.</figcaption>
+      </figure>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th class="nowrap">Node</th><th>Responsibility</th><th class="nowrap">Kind</th><th>Writes to state</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="nowrap"><span class="mono">intake</span></td><td>Normalises a dataset ticket, form entry or uploaded JSON into the ticket schema, filling safe defaults.</td><td><span class="chip c-tool">tool</span></td><td><span class="mono">ticket</span></td></tr>
+            <tr><td class="nowrap"><span class="mono">input_guard</span></td><td>Masks phone, card and email values before any text reaches the model; scans for prompt-injection patterns and non-IT intent (payroll, leave, personal cards).</td><td><span class="chip c-guard">guardrail</span></td><td><span class="mono">masked text, signals</span></td></tr>
+            <tr><td class="nowrap"><span class="mono">scope_check</span></td><td>Admits Printers tickets, plus tickets filed elsewhere whose text carries two or more printer terms; everything else takes the human branch.</td><td><span class="chip c-guard">guardrail</span></td><td><span class="mono">in_scope</span></td></tr>
+            <tr><td class="nowrap"><span class="mono">enrich</span></td><td>Store, CMDB asset, SLA deadlines, version-matrix bugs, history and repeat incidents, with 13 consistency checks (see <a href="#data">Tools &amp; enrichment</a>).</td><td><span class="chip c-tool">tool</span></td><td><span class="mono">enrichment</span></td></tr>
+            <tr><td class="nowrap"><span class="mono">retrieve</span></td><td>Builds a query from symptoms, device and system; runs hybrid search; keeps the top 6 chunks with scores.</td><td><span class="chip c-tool">tool</span></td><td><span class="mono">chunks</span></td></tr>
+            <tr><td class="nowrap"><span class="mono">llm_triage</span></td><td>One schema-enforced call returning routing, confidence, rationale, root cause, steps already tried, cited steps, info needed, escalation reason and an allow-listed automation.</td><td><span class="chip c-llm">LLM</span></td><td><span class="mono">llm_decision</span></td></tr>
+            <tr><td class="nowrap"><span class="mono">output_guard</span></td><td>Grounding check per step, SOP policy overrides, human-review triggers, and the list of proposed actions with their approval flags.</td><td><span class="chip c-guard">guardrail</span></td><td><span class="mono">steps, final_routing, actions</span></td></tr>
+            <tr><td class="nowrap"><span class="mono">summarize</span></td><td>Assembles the store message from grounded steps only, and a structured work note for the ticket, both in code.</td><td><span class="chip c-tool">tool</span></td><td><span class="mono">requester_message, work_note</span></td></tr>
+            <tr><td class="nowrap"><span class="mono">act</span></td><td>Executes auto-allowed actions against the ITSM; leaves the rest proposed for the approval gate.</td><td><span class="chip c-tool">tool</span></td><td><span class="mono">actions</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================ EXAMPLE -->
+    <section id="example">
+      <div class="head-group">
+        <span class="section-kicker">Worked example</span>
+        <h2>One real run, end to end</h2>
+      </div>
+      <div class="example">
+        <div class="prose">
+          <p>This trace is from an actual run of the prototype on training ticket <span class="mono">INC-00029</span>: a Borivali store's Epson receipt printer isn't detected by the POS. Its history shows L1 had already asked the store to check the USB cable and power-cycle the printer.</p>
+          <p><strong>Facts first.</strong> In 53 ms the enrich step confirmed the store and the asset (Epson TM-T88VI v1.12, under warranty to Feb 2027), noted that L1 had already tried something, and found other tickets for the same printer.</p>
+          <p><strong>Knowledge next.</strong> Retrieval returned six chunks led by <span class="mono">printer-offline.md</span>. The runbook the ticket needed, <span class="mono">pos-printer-integration.md</span>, is filed under POS, which is why retrieval deliberately has no hard category filter.</p>
+          <p><strong>One decision.</strong> The model chose guided L1 at 0.90 confidence and proposed six steps. It recognised that only a cable check and a power cycle had been done, so the POS printer-configuration path had not been tried yet. The labelled answer agrees.</p>
+          <p><strong>The guardrail earned its keep.</strong> Step 5 cited a real chunk, but only 29% of its wording was supported there, so it was removed from the store message and shown to the reviewer instead. Five grounded steps went forward, and in supervised mode they wait for an analyst's approval before reaching the store.</p>
+          <p>Nearly all of the 38 seconds is the local 7B model. Every other step together takes well under a second.</p>
+        </div>
+        <div class="receipt" role="img" aria-label="Receipt-style trace of the INC-00029 run: node timings, a guided L1 decision at 0.90 confidence, 5 of 6 steps grounded, matching the label.">
+          <div class="r-center r-title">SERVEWELL TRIAGE AGENT</div>
+          <div class="r-center">run trace · Printers pilot</div>
+          <hr>
+          <div>INC-00029 · P3 · Printers</div>
+          <div>Epson TM-T88VI not detected on POS</div>
+          <div>ServeWell – Borivali · PRN-0113-P1</div>
+          <hr>
+          <div class="r-row"><span>intake</span><span class="ms">0 ms</span><span></span></div>
+          <div class="r-row"><span>input guard</span><span class="ms">0 ms</span><span>no PII · clean</span></div>
+          <div class="r-row"><span>scope</span><span class="ms">0 ms</span><span>Printers</span></div>
+          <div class="r-row"><span>enrich</span><span class="ms">53 ms</span><span>asset ✓ v1.12</span><span class="r-note">L1_ALREADY_ATTEMPTED</span><span class="r-note" style="grid-column:3">REPEAT_INCIDENT</span></div>
+          <div class="r-row"><span>retrieve</span><span class="ms">413 ms</span><span>6 chunks</span></div>
+          <div class="r-row"><span>llm triage</span><span class="ms">37.1 s</span><span>l1_guided · 0.90</span></div>
+          <div class="r-row"><span>output guard</span><span class="ms">1 ms</span><span>5/6 grounded</span><span class="r-note r-cut">✂ step 5 removed</span><span class="r-note r-cut" style="grid-column:3">29% support</span></div>
+          <div class="r-row"><span>summarize</span><span class="ms">0 ms</span><span>message + note</span></div>
+          <hr>
+          <div class="r-final"><span>FINAL l1_guided</span><span>LABEL l1_guided ✓</span></div>
+          <hr>
+          <div>KB cited:</div>
+          <div>· runbooks/printer-offline.md</div>
+          <div>· runbooks/pos-printer-integration.md</div>
+          <hr>
+          <div class="r-center">prompt triage_resolve_v1 · temp 0</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ DATA -->
+    <section id="data">
+      <div class="head-group">
+        <span class="section-kicker">Structured IT data</span>
+        <h2>Tools, not reasoning, for facts</h2>
+      </div>
+      <p class="principle">Anything that can be looked up is looked up. The model is never asked what version a printer runs, whether it's under warranty, or when the SLA expires.</p>
+      <p>The data service exposes store, asset, SLA, version-matrix and ticket-history lookups as SQL over DuckDB. The enrich step always runs every lookup: they cost milliseconds, and their results reach the model as "verified facts". When the requester's typed version disagrees with the CMDB, the CMDB wins and the mismatch is flagged. The same enrichment checks catch the dataset's deliberately broken tickets: all four <em>false-asset</em> tickets are flagged <span class="mono">ASSET_NOT_FOUND</span>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Check</th><th class="nowrap">Severity</th><th>What it catches</th><th>Effect downstream</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">UNKNOWN_SYSTEM</span></td><td><span class="chip c-crit">critical</span></td><td>Stated or CMDB system absent from the version matrix (e.g. "KitchenBridge v2.3")</td><td>Forces L2: the KB can't be trusted for it</td></tr>
+            <tr><td><span class="mono">STORE_UNKNOWN</span></td><td><span class="chip c-crit">critical</span></td><td>Store ID not in the store master</td><td>Human review</td></tr>
+            <tr><td><span class="mono">ASSET_NOT_FOUND</span></td><td><span class="chip c-human">warning</span></td><td>Asset ID not in the CMDB</td><td>Human review</td></tr>
+            <tr><td><span class="mono">ASSET_STORE / CATEGORY / VERSION_MISMATCH</span></td><td><span class="chip c-human">warning</span></td><td>Asset belongs to another store, is the wrong device type, or disagrees with the ticket's version</td><td>Shown to the model and reviewer</td></tr>
+            <tr><td><span class="mono">SPARSE_DESCRIPTION</span></td><td><span class="chip c-human">warning</span></td><td>Fewer than 12 words of subject and description</td><td>Signals a clarification route</td></tr>
+            <tr><td><span class="mono">L1_ALREADY_ATTEMPTED</span></td><td><span class="chip c-info">info</span></td><td>History entries by an L1 agent: the strongest escalation signal in the labels</td><td>Model weighs steps already tried</td></tr>
+            <tr><td><span class="mono">KNOWN_BUG · REPEAT_INCIDENT · ESCALATION_FLAG_SET</span></td><td><span class="chip c-info">info</span></td><td>Version-matrix bug and patch; other tickets on the same asset; submitter pre-flag</td><td>Context for the model and work note</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The SLA clock is computed from the ticket's open time and the priority × category matrix (for example, P2: first response 30 min, L2 escalation by 90 min, resolution within 4 h). It appears in the work note and in the store message's promised update time.</p>
+    </section>
+
+    <!-- ============================================================ GROUNDING -->
+    <section id="grounding">
+      <div class="head-group">
+        <span class="section-kicker">RAG</span>
+        <h2>Retrieval and grounding</h2>
+      </div>
+      <div class="two-col">
+        <div>
+          <h3>How the knowledge base is indexed</h3>
+          <ul>
+            <li>Markdown is split on H2/H3 headings, so a chunk is a runbook section such as "Immediate Steps" or "Resolution Path B". Each chunk carries its heading path.</li>
+            <li>Sections are capped at 350 words. Header-only stubs merge into the next section; code fences and horizontal rules are handled.</li>
+            <li>The version matrix is indexed as one chunk per system, and is also queried directly as structured data.</li>
+            <li>Result: 49 documents → 667 chunks, each with doc type, category and section metadata. Embedding takes about 22 s.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>How a query is answered</h3>
+          <ul>
+            <li><strong>BM25</strong> catches exact tokens: error codes like <span class="mono">ERR-P502</span>, versions, model numbers.</li>
+            <li><strong>Dense</strong> search (<span class="mono">nomic-embed-text</span> in Chroma) catches paraphrase: "won't turn on" ≈ "startup failure".</li>
+            <li><strong>Reciprocal Rank Fusion</strong> (k = 60, 40 candidates each) merges the two without comparing raw scores.</li>
+            <li>The top 6 chunks reach the model as numbered excerpts <span class="mono">[C1]…[C6]</span>. If embeddings are unavailable, retrieval degrades to BM25 and says so.</li>
+          </ul>
+        </div>
+      </div>
+      <p>Grounding is enforced after generation, not requested in the prompt. Every step the model proposes goes through three tests before it can reach a store manager:</p>
+      <figure>
+        <div class="fig-frame">
+          <svg viewBox="0 0 1000 214" role="img" aria-label="Grounding check: each proposed step must cite a retrieved chunk, must not mention codes, versions or IPs absent from the ticket and cited chunks, and must have at least 35 percent word support in the cited chunks. Steps passing all three reach the store message; a step failing any test is removed and shown to the reviewer with the reason.">
+            <defs>
+              <marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrowhead"/></marker>
+              <marker id="ah3ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrowhead-ok"/></marker>
+              <marker id="ah3f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrowhead-fail"/></marker>
+            </defs>
+            <rect x="10" y="20" width="150" height="62" rx="6" class="n-llm"/>
+            <text x="85" y="46" text-anchor="middle" class="t-name">proposed step</text>
+            <text x="85" y="64" text-anchor="middle" class="t-sub">text + ["C2"]</text>
+
+            <rect x="200" y="20" width="170" height="62" rx="6" class="n-guard"/>
+            <text x="285" y="44" text-anchor="middle" class="t-name">1 · valid citation</text>
+            <text x="285" y="62" text-anchor="middle" class="t-sub">cites a chunk that</text>
+            <text x="285" y="75" text-anchor="middle" class="t-sub">was actually retrieved</text>
+
+            <rect x="410" y="20" width="170" height="62" rx="6" class="n-guard"/>
+            <text x="495" y="44" text-anchor="middle" class="t-name">2 · no invented specifics</text>
+            <text x="495" y="62" text-anchor="middle" class="t-sub">codes · versions · IPs</text>
+            <text x="495" y="75" text-anchor="middle" class="t-sub">appear in source</text>
+
+            <rect x="620" y="20" width="170" height="62" rx="6" class="n-guard"/>
+            <text x="705" y="44" text-anchor="middle" class="t-name">3 · lexical support</text>
+            <text x="705" y="62" text-anchor="middle" class="t-sub">≥ 35% of content words</text>
+            <text x="705" y="75" text-anchor="middle" class="t-sub">found in cited chunks</text>
+
+            <rect x="830" y="20" width="160" height="62" rx="6" class="n-guard"/>
+            <text x="910" y="46" text-anchor="middle" class="t-name">store message</text>
+            <text x="910" y="64" text-anchor="middle" class="t-sub">grounded steps only</text>
+
+            <path d="M160 51 H196" class="edge" marker-end="url(#ah3)"/>
+            <path d="M370 51 H406" class="edge-ok" marker-end="url(#ah3ok)"/>
+            <text x="388" y="44" text-anchor="middle" class="t-edge t-ok">pass</text>
+            <path d="M580 51 H616" class="edge-ok" marker-end="url(#ah3ok)"/>
+            <text x="598" y="44" text-anchor="middle" class="t-edge t-ok">pass</text>
+            <path d="M790 51 H826" class="edge-ok" marker-end="url(#ah3ok)"/>
+            <text x="808" y="44" text-anchor="middle" class="t-edge t-ok">pass</text>
+
+            <rect x="200" y="150" width="590" height="50" rx="6" class="n-fail"/>
+            <text x="495" y="171" text-anchor="middle" class="t-name">removed from store message</text>
+            <text x="495" y="188" text-anchor="middle" class="t-sub">shown to the reviewer with the failing reason</text>
+
+            <path d="M285 82 V146" class="edge-fail" marker-end="url(#ah3f)"/>
+            <text x="292" y="120" class="t-edge t-fail">fail</text>
+            <path d="M495 82 V146" class="edge-fail" marker-end="url(#ah3f)"/>
+            <text x="502" y="120" class="t-edge t-fail">fail</text>
+            <path d="M705 82 V146" class="edge-fail" marker-end="url(#ah3f)"/>
+            <text x="712" y="120" class="t-edge t-fail">fail</text>
+          </svg>
+        </div>
+        <figcaption>The store message and work note are assembled by code from steps that passed all three tests, so an unsupported sentence from the model has no path to the store. If a proposed L1 fix ends up with no grounded steps, policy reroutes the ticket to L2.</figcaption>
+      </figure>
+      <div class="facts">
+        <div><span class="k">Hit@6 · all categories</span><span class="v num">0.98</span><span class="d">A relevant doc is in the top 6 for 98% of the 220 labelled tickets</span></div>
+        <div><span class="k">MRR · all categories</span><span class="v num">0.91</span><span class="d">The first relevant doc is almost always ranked first</span></div>
+        <div><span class="k">Doc recall@6 · Printers</span><span class="v num">0.79</span><span class="d">Hit@6 1.00 on the Printers slice, measured during retrieval tuning</span></div>
+        <div><span class="k">Doc recall@6 · all</span><span class="v num">0.64</span><span class="d">Tickets list ~4.6 relevant docs, so top 6 caps recall; most misses are specs and SOPs</span></div>
+      </div>
+      <p>These numbers compare retrieval against each label's <span class="mono">relevant_kb_docs</span>, before any model is involved. Removing the soft category prior raised runbook recall on the POS + Printers slice from 0.68 to 0.75, because printer fixes also live in POS runbooks. The agent therefore runs without the prior.</p>
+    </section>
+
+    <!-- ============================================================ ACTIONS -->
+    <section id="actions">
+      <div class="head-group">
+        <span class="section-kicker">Human in the loop</span>
+        <h2>Actions and the autonomy line</h2>
+      </div>
+      <p>The model can only suggest. It picks an automation from a closed list of three, and it cannot name an action. The policy layer turns the decision into proposed actions and decides which of them wait for a person. Supervised mode, on by default in the pilot, also holds back guidance that would otherwise be safe to send.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Action</th><th class="nowrap">When proposed</th><th class="nowrap">Runs</th></tr></thead>
+          <tbody>
+            <tr><td>Post triage work note (internal)</td><td>Every ticket</td><td><span class="chip c-auto">automatic</span></td></tr>
+            <tr><td>Set routing and assign queue</td><td>Every ticket</td><td><span class="chip c-auto">automatic</span> unless review is required</td></tr>
+            <tr><td>Send grounded step-by-step guidance to the store</td><td>Guided or self-service route</td><td><span class="chip c-human">approval</span> in supervised mode or when review is required</td></tr>
+            <tr><td>Ask the store for missing details</td><td>Needs-clarification route</td><td><span class="chip c-human">approval</span> in supervised mode or when review is required</td></tr>
+            <tr><td>Run automation: <span class="mono">restart_print_spooler</span>, <span class="mono">clear_print_queue</span>, <span class="mono">send_test_print</span></td><td>Guided route, if the model suggests one</td><td><span class="chip c-human">approval</span> always</td></tr>
+            <tr><td>Escalate to L2 with escalation package</td><td>L2 route</td><td><span class="chip c-human">approval</span> always</td></tr>
+            <tr><td>Notify on-call</td><td>L2 route on a P1</td><td><span class="chip c-human">approval</span> always</td></tr>
+            <tr><td>Redirect a non-IT request</td><td>Non-IT route</td><td><span class="chip c-human">approval</span> always</td></tr>
+            <tr><td>Anything else</td><td>—</td><td><span class="chip c-crit">not possible</span> the schema has no slot for it</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Approvals and rejections carry the reviewer's name into the audit log. Turning supervised mode off is how autonomy would be widened later, once evaluation supports it: confident, fully grounded guidance would then go straight to the store, while escalations and automations stay gated.</p>
+    </section>
+
+    <!-- ============================================================ GUARDRAILS -->
+    <section id="guardrails">
+      <div class="head-group">
+        <span class="section-kicker">Safety</span>
+        <h2>Guardrails, layer by layer</h2>
+      </div>
+      <p>The guardrails are ordered so that each one catches what the previous layer can't. The model's routing is a proposal: deterministic SOP rules can override it, and every override is recorded with its reason.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="nowrap">Layer</th><th>Check</th><th>On trigger</th></tr></thead>
+          <tbody>
+            <tr><td class="nowrap">Input</td><td>PII masking: phone, card and email values replaced before the LLM call</td><td>Masked; count logged</td></tr>
+            <tr><td class="nowrap">Input</td><td>Prompt-injection patterns ("ignore previous instructions", "act as admin"), plus a prompt rule to ignore embedded instructions</td><td><span class="chip c-human">human review</span></td></tr>
+            <tr><td class="nowrap">Input</td><td>Non-IT terms present but model routed the ticket as IT</td><td><span class="chip c-human">human review</span></td></tr>
+            <tr><td class="nowrap">Scope</td><td>Not a printer ticket</td><td>LLM skipped · human L1 queue</td></tr>
+            <tr><td class="nowrap">Retrieval</td><td>Top fused score below 0.35</td><td>Flagged on the guardrail panel</td></tr>
+            <tr><td class="nowrap">Output</td><td>Grounding: citation, invented specifics, lexical support</td><td>Step removed from store message</td></tr>
+            <tr><td class="nowrap">Policy</td><td>Unknown system or version</td><td><span class="chip c-crit">override → L2</span></td></tr>
+            <tr><td class="nowrap">Policy</td><td>L1 fix proposed with zero grounded steps</td><td><span class="chip c-crit">override → L2</span></td></tr>
+            <tr><td class="nowrap">Policy</td><td>Model confidence below 0.6 · P1 on an L1 route · store or asset missing from CMDB</td><td><span class="chip c-human">human review</span></td></tr>
+            <tr><td class="nowrap">Runtime</td><td>JSON schema enforced by Ollama; one retry on validation failure</td><td>LLM down or unparseable → L2 + review (fail safe)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================ EVALUATION -->
+    <section id="evaluation">
+      <div class="head-group">
+        <span class="section-kicker">Correctness &amp; reliability</span>
+        <h2>Evaluation and observability</h2>
+      </div>
+      <div class="two-col">
+        <div>
+          <h3>Before deployment: offline evaluation</h3>
+          <ul>
+            <li>The harness runs every Printers ticket (28 labelled, 14 guided / 14 L2, plus 7 unlabelled edge-case tickets) through the full graph in dry-run mode, with no ITSM writes.</li>
+            <li><strong>Routing accuracy</strong> is reported twice, model-only and after policy, so the value added by the rules is visible.</li>
+            <li><strong>Escalation recall</strong> is the safety number, because a missed escalation costs a store more than an unnecessary one. <strong>Escalation precision</strong> is the L2-workload number.</li>
+            <li>Also reported: grounding rate, retrieval recall@6 against labelled docs, human-review rate and seconds per ticket. The Evaluation page shows a confusion matrix and per-ticket drill-down.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>After deployment: observability</h3>
+          <ul>
+            <li>An append-only audit log records every node with its latency, every action, and every approval or rejection with the reviewer's name.</li>
+            <li>Every run shows the exact LLM input, the raw JSON output, token counts and the prompt version (<span class="mono">triage_resolve_v1</span>).</li>
+            <li>Temperature 0 plus schema-constrained output make runs reproducible enough to compare prompt versions.</li>
+            <li>Operating KPIs to watch: reviewer override rate, grounding-failure rate, time to first response against SLA, and reopen rate on L1-closed tickets.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ TRADEOFFS -->
+    <section id="tradeoffs">
+      <div class="head-group">
+        <span class="section-kicker">Decisions</span>
+        <h2>Key trade-offs</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Decision</th><th>Chosen</th><th>Why, and what it costs</th></tr></thead>
+          <tbody>
+            <tr><td>Orchestration</td><td>Fixed LangGraph state graph</td><td>Explicit, auditable path; typed state; branch for out-of-scope tickets. Costs flexibility compared with free-form multi-agent chat, which is not what an ITSM process needs.</td></tr>
+            <tr><td>LLM calls per ticket</td><td>One structured call</td><td>Halves latency on a local 7B model compared with separate triage and resolve calls. Safety comes from the deterministic layers around it, not from a second model pass.</td></tr>
+            <tr><td>Model</td><td><span class="mono">qwen2.5:7b-instruct</span>, local</td><td>Apache-2.0, free, private, good at JSON. Costs reasoning quality and time (≈35–60 s per ticket). One wrapper makes a hosted or platform model a configuration change.</td></tr>
+            <tr><td>Retrieval</td><td>Hybrid BM25 + dense, RRF</td><td>Exact error codes and paraphrase both matter in IT tickets. No hard category filter, because printer fixes span POS runbooks.</td></tr>
+            <tr><td>Store-facing text</td><td>Assembled in code from grounded steps</td><td>No ungrounded sentence can reach a store. Costs some fluency; only a short intro line is model-written.</td></tr>
+            <tr><td>Autonomy</td><td>Supervised by default</td><td>Trust is earned with evidence. Costs analyst clicks during the pilot, which is exactly the review data needed to widen autonomy later.</td></tr>
+            <tr><td>Scope</td><td>Printers only</td><td>Deep and defensible rather than broad and shallow. Other categories reuse the same graph (see below).</td></tr>
+            <tr><td>Observability</td><td>SQLite audit + in-app trace</td><td>Zero infrastructure for a POC. Production would use platform tracing (OpenTelemetry or Langfuse).</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================ PRODUCTION -->
+    <section id="production">
+      <div class="head-group">
+        <span class="section-kicker">Start small, think big</span>
+        <h2>Path to production and more categories</h2>
+      </div>
+      <p>Each simulated building block has a direct counterpart on the platform, and the agent only talks to these interfaces:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>POC component</th><th>Production counterpart</th></tr></thead>
+          <tbody>
+            <tr><td>DuckDB over CSV / JSON</td><td>Governed Snowflake tables and semantic models for stores, CMDB, SLA and ITSM history</td></tr>
+            <tr><td>Chroma + BM25 over markdown</td><td>Platform retrieval service (e.g. Cortex Search) over Confluence, SharePoint and PDF sources</td></tr>
+            <tr><td>Ollama, local 7B</td><td>Platform model endpoint, chosen per task and cost</td></tr>
+            <tr><td>SQLite ITSM</td><td>ServiceNow or Jira Service Management APIs</td></tr>
+            <tr><td>Simulated automations</td><td>Pre-approved remote actions through device-management tooling, same allow-list model</td></tr>
+            <tr><td>SQLite audit log</td><td>Platform observability and tracing</td></tr>
+            <tr><td>Streamlit console</td><td>Analyst workspace in the ITSM; Teams or chat for store managers</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Adding a category (POS, Wi-Fi, Kiosks) reuses the graph, the data service, the retriever, the guardrails and the evaluation harness unchanged. What changes is configuration and content: the pilot category, the device list in the prompt, the scope keywords, and the automation allow-list. The enrichment already knows the expected asset type for all six categories, and the KB index already covers all 49 documents.</p>
+    </section>
+
+    <!-- ============================================================ LIMITS -->
+    <section id="limits">
+      <div class="head-group">
+        <span class="section-kicker">Candidly</span>
+        <h2>Limits and next steps</h2>
+      </div>
+      <div class="two-col">
+        <div>
+          <h3>Known limits</h3>
+          <ul>
+            <li><strong>Latency.</strong> 35–60 s per ticket on a laptop, almost all of it model time. Acceptable against a 30–45 min baseline, but not instant.</li>
+            <li><strong>Label coverage.</strong> Train labels contain only guided-L1 and L2 routes. The self-service, non-IT and needs-clarification paths are rule- and prompt-driven and are not statistically validated.</li>
+            <li><strong>Small evaluation set.</strong> 28 labelled Printers tickets make the results directional. Full-run results are on the app's Evaluation page and aren't quoted here.</li>
+            <li><strong>Observed bias.</strong> Tickets pre-flagged for escalation but with no troubleshooting history sometimes escalate when the label says guided L1 (e.g. INC-00031).</li>
+            <li><strong>Heuristic grounding.</strong> The lexical check catches unsupported and invented content, but not a fluent paraphrase that subtly changes meaning.</li>
+            <li><strong>Simulated systems.</strong> ITSM, notifications and automations are simulated, and there is no device telemetry in the dataset.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Next steps</h3>
+          <ul>
+            <li>Add an entailment or LLM-judge grounding check alongside the lexical one, scored against the labels' behaviour rubrics.</li>
+            <li>Tune how the pre-escalation flag is weighed against actual history, and re-measure escalation precision without losing recall.</li>
+            <li>Build a held-out test split and hand-labelled cases for the three unlabelled routes.</li>
+            <li>Widen autonomy by confidence band, using the pilot's approve/reject data as evidence.</li>
+            <li>Connect live printer status or telemetry so "is it online?" becomes a lookup, not a question for the store.</li>
+            <li>Roll out to the next category (POS offline) on the same graph.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      ServeWell Printer Triage Agent · solution architecture for the phData Applied AI Solutions Architect project challenge · reflects the working prototype in <span class="mono">servewell-agent/</span> as built on 26 Sep 2026.
+    </footer>
+  </main>
+</div>
